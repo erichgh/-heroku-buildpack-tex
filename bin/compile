@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# bin/compile <build-dir> <cache-dir>
+
+# Abort on errors!
+set -e
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
+VERSION_STAMP=$BUILD_DIR/.texlive-version
+PLATFORM=$(uname -m)-$(uname -s | tr A-Z a-z)
+TEXLIVE_DOMAIN="https://heroku-buildpack-tex-mezis.s3.amazonaws.com"
+TEXLIVE_HOME=$BUILD_DIR/.texlive
+TEXLIVE_CACHE=$CACHE_DIR/.texlive
+PATH=$TEXLIVE_HOME/bin/${PLATFORM}:$PATH
+PROFILE_D=$BUILD_DIR/.profile.d/texlive.sh
+
+# Output helpers
+source $BIN_DIR/utils
+
+if test -e $VERSION_STAMP ; then
+  VERSION=$(cat $VERSION_STAMP)
+  build-step "Using specified TeX Live version: $VERSION"
+else
+  VERSION=`curl -k -L $TEXLIVE_DOMAIN/VERSION -s`
+  build-step "Defaulting to buildpack's TeX Live version: $VERSION"
+fi
+
+TEXLIVE_URL="$TEXLIVE_DOMAIN/texlive-$VERSION-$PLATFORM.tar.gz"
+
+# Prepare the various paths
+mkdir -p $TEXLIVE_HOME
+mkdir -p $TEXLIVE_CACHE
+mkdir -p `dirname $PROFILE_D`
+
+if [ -f $TEXLIVE_CACHE/VERSION ] && [ $VERSION = `cat $TEXLIVE_CACHE/VERSION` ] ; then
+    # Get TeX Live from the cache if possible
+    build-step "Installing TeX Live $VERSION from cache"
+    cp -R $TEXLIVE_CACHE/* $TEXLIVE_HOME
+else
+    # Get TeX Live from S3 if necessary
+    if [ -f "$TEXLIVE_CACHE/VERSION" ]; then
+        build-step "Upgrading to TeX Live $VERSION"
+    else
+        build-step "Fetching TeX Live $VERSION"
+    fi
+
+    curl -k -L $TEXLIVE_URL -s -o - | tar xzf - -C $TEXLIVE_HOME
+
+    # Make sure the cache is empty
+    rm -rf $TEXLIVE_CACHE/*
+
+    # Store a copy of it in the cache so it doesn't have to be fetched again
+    cp -R $TEXLIVE_HOME/* $TEXLIVE_CACHE
+
+    # Store the version for later
+    echo $VERSION > $TEXLIVE_CACHE/VERSION
+fi
+
+# Check for an essential binary to make sure it's installed
+if [ ! `which pdflatex` ]; then
+    build-warn "TeX Live installation failed"
+    exit 1
+fi
+
+# Set up the environment for runtimes now that compilation has finished
+echo "export PATH=\$HOME/.texlive/bin/${PLATFORM}:\$PATH" >> $PROFILE_D
