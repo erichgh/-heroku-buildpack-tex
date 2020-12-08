@@ -10,7 +10,7 @@ make_tempfile() {
   mktemp -t texlive.XXXXXX
 }
 
-PKGS_ADD="fontspec float eurosym tabto-ltx vntex caption xcolor colortbl babel lmodern amsmath fancyhdr hyperref geometry array tabularx float eurosym pgf geometry amsmath apacite graphicx ragged2e multicol fontenc inputenc textcomp lastpage"
+PKGS_ADD="collection-basic collection-latexrecommended collection-fontsrecommended collection-latexextra fontspec float eurosym tabto-ltx vntex caption xcolor colortbl babel lmodern amsmath fancyhdr hyperref geometry array tabularx float eurosym pgf geometry amsmath apacite graphicx ragged2e multicol fontenc inputenc textcomp lastpage wrapfig"
 PKGS_REMOVE="amsfonts koma-script"
 
 REPO="http://ctan.mines-albi.fr"
